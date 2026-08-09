@@ -3,8 +3,12 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/shain1912/mqtt-classroom/main/install.sh | bash
 #
-# No Node, no clone. Works from a checkout too - it copies the local files
-# instead of downloading when they are already next to this script.
+# Fallback for machines without Node. The normal route is the skills.sh CLI:
+#
+#   npx skills add shain1912/mqtt-classroom
+#
+# Works from a checkout too - it copies the local files instead of downloading
+# when they are already next to this script.
 
 set -euo pipefail
 

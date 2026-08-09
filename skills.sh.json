@@ -1,0 +1,9 @@
+{
+  "groupings": [
+    {
+      "title": "Classroom MQTT",
+      "description": "Control XIAO ESP32C6 boards and read their sensors over the shared classroom Mosquitto broker.",
+      "skills": ["mqtt-classroom"]
+    }
+  ]
+}

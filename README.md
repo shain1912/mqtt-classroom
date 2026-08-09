@@ -12,23 +12,27 @@ skills/     mqtt-classroom skill (SKILL.md + skill.sh) for students
 
 ## Install (students)
 
-Either one-liner installs the skill into `~/.claude/skills/mqtt-classroom`:
-
 ```bash
-npx github:shain1912/mqtt-classroom
+npx skills add shain1912/mqtt-classroom
 ```
+
+That is the [skills.sh](https://www.skills.sh) CLI. It finds the skill in
+`skills/mqtt-classroom/`, installs it to `~/.agents/skills/mqtt-classroom`, and
+links it into your agent's skills directory (`~/.claude/skills/` for Claude
+Code). Add `-g` for a user-level install, `-l` to list without installing.
+
+No Node? A plain shell installer does the same thing:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/shain1912/mqtt-classroom/main/install.sh | bash
 ```
 
-Nothing is published to npm — `npx` runs straight from the repo. Use the `curl`
-line if you have no Node. On Windows run either from **Git Bash**, not cmd.
+On Windows run either from **Git Bash**, not cmd.
 
 Then:
 
 ```bash
-cd ~/.claude/skills/mqtt-classroom
+cd ~/.agents/skills/mqtt-classroom
 ./skill.sh name seongho    # your board's name, saved to ~/.mqtt-classroom
 ./skill.sh check           # is the broker reachable?
 ./skill.sh devices         # which boards are online
