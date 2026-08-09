@@ -27,10 +27,29 @@ export MQTT_HOST=192.168.0.49
 export MQTT_PORT=1883
 ```
 
+## Your device name
+
+Save your board's name once and every command defaults to it:
+
+```bash
+./skill.sh name seongho    # save
+./skill.sh name            # show what is saved
+./skill.sh led on          # no id needed any more
+```
+
+It is stored in `~/.mqtt-classroom`. `MQTT_DEVICE` in the environment overrides
+the saved value for one shell.
+
+The name must match `DEVICE_NAME` in the board's `arduino_secrets.h` — that is
+what decides the board's topic prefix. Two boards sharing a name will fight over
+the same topics and repeatedly kick each other off the broker, so pick something
+unique in the class.
+
 ## Topics
 
-Each board owns a subtree keyed by its id (`c6-` + last 3 bytes of its MAC,
-printed on the board's serial monitor at boot).
+Each board owns a subtree keyed by its name (`DEVICE_NAME`, or `c6-` + the last
+3 bytes of its MAC if that is left empty). The board prints its name on the
+serial monitor at boot.
 
 | Topic | Direction | Payload |
 |---|---|---|
@@ -45,13 +64,14 @@ state immediately instead of waiting for the next change.
 ## Usage
 
 ```bash
-./skill.sh check              # is the broker reachable at all?
-./skill.sh devices            # which boards are online
-./skill.sh led c6-85ef58 on   # LED on
-./skill.sh led c6-85ef58 off
-./skill.sh sensor c6-85ef58   # stream A0 readings
-./skill.sh watch              # every message from every board
-./skill.sh watch c6-85ef58    # one board only
+./skill.sh name seongho     # save your board's name (once)
+./skill.sh check            # is the broker reachable at all?
+./skill.sh devices          # which boards are online
+./skill.sh led on           # your board's LED on
+./skill.sh led off
+./skill.sh led seongho on   # or name another board explicitly
+./skill.sh sensor           # stream your board's A0 readings
+./skill.sh watch            # every message from your board
 ```
 
 ## Prerequisites
@@ -62,6 +82,13 @@ state immediately instead of waiting for the next change.
   `C:\Program Files\mosquitto` to `PATH`. Run `skill.sh` from Git Bash.
 - **macOS** — `brew install mosquitto`
 - **Linux** — `sudo apt install mosquitto-clients`
+
+## Dashboard
+
+`web/dashboard.html` in this repo shows every node, how it is attached to the
+broker, its live A0 value, and LED buttons. Open the file directly in a browser
+— no server needed. Point it at another broker with
+`dashboard.html?host=192.168.0.50`.
 
 ## Browser clients
 

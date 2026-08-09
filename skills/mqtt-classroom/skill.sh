@@ -17,7 +17,27 @@ MQTT_HOST="${MQTT_HOST:-192.168.0.49}"
 MQTT_PORT="${MQTT_PORT:-1883}"
 BASE="classroom"
 
+# Your own board's name, so you don't retype it on every command.
+# Saved by `./skill.sh name <id>`; MQTT_DEVICE in the environment wins over it.
+CONFIG_FILE="${HOME}/.mqtt-classroom"
+
 die() { echo "error: $*" >&2; exit 1; }
+
+load_device() {
+  if [ -n "${MQTT_DEVICE:-}" ]; then
+    echo "$MQTT_DEVICE"
+  elif [ -f "$CONFIG_FILE" ]; then
+    sed -n 's/^device=//p' "$CONFIG_FILE" | head -1
+  fi
+}
+
+# Commands take an explicit id, or fall back to the saved one.
+resolve_device() {
+  local id="${1:-}"
+  [ -n "$id" ] || id="$(load_device)"
+  [ -n "$id" ] || die "no device id. Pass one, or save yours: ./skill.sh name seongho"
+  echo "$id"
+}
 
 need_clients() {
   command -v mosquitto_sub >/dev/null 2>&1 || die "mosquitto_sub not found in PATH - see the header of this script"
@@ -25,17 +45,22 @@ need_clients() {
 }
 
 usage() {
+  local saved; saved="$(load_device)"
   cat <<EOF
 mqtt-classroom - broker ${MQTT_HOST}:${MQTT_PORT}
+your device: ${saved:-<not set - run: ./skill.sh name YOUR_NAME>}
 
+  ./skill.sh name [ID]          save your board's name (no arg = show current)
   ./skill.sh check              test that the broker is reachable
   ./skill.sh devices            list boards that are online right now
   ./skill.sh watch [ID]         stream every message (or just one board's)
-  ./skill.sh led ID on|off|toggle
-  ./skill.sh sensor ID          stream that board's A0 readings
+  ./skill.sh led [ID] on|off|toggle
+  ./skill.sh sensor [ID]        stream that board's A0 readings
   ./skill.sh pub TOPIC PAYLOAD  publish anything (escape hatch)
 
-ID is the board id printed on its serial monitor, e.g. c6-85ef58.
+ID defaults to your saved name, so once you run \`./skill.sh name seongho\`
+you can just type \`./skill.sh led on\`. It must match DEVICE_NAME in the
+board's arduino_secrets.h.
 
 Topics
   ${BASE}/<id>/led/set      on | off | toggle      (you publish)
@@ -70,17 +95,47 @@ cmd_devices() {
     done || true
 }
 
+cmd_name() {
+  local id="${1:-}"
+  if [ -z "$id" ]; then
+    local saved; saved="$(load_device)"
+    if [ -n "$saved" ]; then
+      echo "your device: ${saved}"
+      [ -n "${MQTT_DEVICE:-}" ] && echo "(from MQTT_DEVICE in the environment)"
+    else
+      echo "no device saved yet - run: ./skill.sh name YOUR_NAME"
+    fi
+    return
+  fi
+
+  # Topic level, so keep it free of MQTT wildcards and separators.
+  case "$id" in
+    */*|*'#'*|*'+'*|*' '*) die "device name must not contain / # + or spaces" ;;
+  esac
+
+  printf 'device=%s\n' "$id" > "$CONFIG_FILE"
+  echo "saved: ${id}  (${CONFIG_FILE})"
+  echo "this must match DEVICE_NAME in your board's arduino_secrets.h"
+}
+
 cmd_watch() {
   need_clients
-  local id="${1:-+}"
+  local id="${1:-}"
+  [ -n "$id" ] || id="$(load_device)"
+  [ -n "$id" ] || id="+"          # nothing saved: watch every board
   echo "watching ${BASE}/${id}/# (Ctrl-C to stop)"
   mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" -t "${BASE}/${id}/#" -v
 }
 
 cmd_led() {
   need_clients
-  local id="${1:-}" state="${2:-}"
-  [ -n "$id" ] && [ -n "$state" ] || die "usage: ./skill.sh led ID on|off|toggle"
+  local id state
+  # Accept both `led on` (saved device) and `led c6-85ef58 on`.
+  case "${1:-}" in
+    on|off|toggle) id="$(resolve_device)"; state="$1" ;;
+    *)             id="$(resolve_device "${1:-}")"; state="${2:-}" ;;
+  esac
+  [ -n "$state" ] || die "usage: ./skill.sh led [ID] on|off|toggle"
   case "$state" in
     on|off|toggle) ;;
     *) die "state must be on, off or toggle" ;;
@@ -91,8 +146,7 @@ cmd_led() {
 
 cmd_sensor() {
   need_clients
-  local id="${1:-}"
-  [ -n "$id" ] || die "usage: ./skill.sh sensor ID"
+  local id; id="$(resolve_device "${1:-}")"
   echo "streaming ${BASE}/${id}/sensor/a0 (Ctrl-C to stop)"
   mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" -t "${BASE}/${id}/sensor/a0"
 }
@@ -106,6 +160,7 @@ cmd_pub() {
 }
 
 case "${1:-help}" in
+  name)    shift; cmd_name "$@" ;;
   check)   shift; cmd_check "$@" ;;
   devices) shift; cmd_devices "$@" ;;
   watch)   shift; cmd_watch "$@" ;;

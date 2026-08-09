@@ -15,6 +15,13 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltinRole]::Administra
 $target = "C:\Program Files\mosquitto\mosquitto.conf"
 $source = Join-Path $PSScriptRoot "mosquitto.conf"
 
+# Persistence file and log both live here.
+$dataDir = "C:\ProgramData\mosquitto"
+if (-not (Test-Path $dataDir)) {
+    New-Item -ItemType Directory -Path $dataDir | Out-Null
+    Write-Host "Created $dataDir"
+}
+
 # Back up whatever is there now, once.
 $backup = "$target.bak"
 if (-not (Test-Path $backup)) {
@@ -39,7 +46,16 @@ foreach ($port in 1883, 9001) {
 
 Restart-Service mosquitto
 Start-Sleep -Seconds 2
+$svc = Get-Service mosquitto
 Get-Service mosquitto | Format-List Name, Status
+
+# A bad config makes the service exit immediately and Restart-Service does not
+# report why. Run the broker in the foreground to surface the parse error.
+if ($svc.Status -ne 'Running') {
+    Write-Warning "mosquitto did not stay running - config error below:"
+    & "C:\Program Files\mosquitto\mosquitto.exe" -c $target -v
+    exit 1
+}
 
 Write-Host "`nListening sockets:"
 netstat -ano | Select-String ":1883|:9001"

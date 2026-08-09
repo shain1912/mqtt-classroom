@@ -5,8 +5,9 @@
 //   publishes   classroom/<id>/sensor/a0    {"raw":2048,"mv":1650}  every 2s
 //   publishes   classroom/<id>/status       "online" | "offline"    (retained, LWT)
 //
-// <id> defaults to "c6-" plus the last 3 bytes of the MAC, so every board on the
-// broker gets a distinct topic tree without editing the sketch.
+// <id> is DEVICE_NAME from arduino_secrets.h. Leave that empty and the board
+// falls back to "c6-" plus the last 3 bytes of its MAC, so an unconfigured
+// board still gets a distinct topic tree.
 
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -116,11 +117,14 @@ void setup() {
 
   delay(500);
 
-  uint8_t mac[6];
-  WiFi.macAddress(mac);
-  char idBuf[16];
-  snprintf(idBuf, sizeof(idBuf), "c6-%02x%02x%02x", mac[3], mac[4], mac[5]);
-  deviceId = idBuf;
+  deviceId = DEVICE_NAME;
+  if (deviceId.length() == 0) {
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    char idBuf[16];
+    snprintf(idBuf, sizeof(idBuf), "c6-%02x%02x%02x", mac[3], mac[4], mac[5]);
+    deviceId = idBuf;
+  }
 
   String base   = "classroom/" + deviceId;
   topicLedSet   = base + "/led/set";
