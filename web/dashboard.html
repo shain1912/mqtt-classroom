@@ -311,7 +311,7 @@ function onMessage(topic, payload) {
     } catch (e) { /* not JSON - ignore, the log still shows it */ }
   }
 
-  render();
+  scheduleRender();
 }
 
 function sendLed(id, state) {
@@ -331,22 +331,45 @@ function visibleNodes() {
     .sort((a, b) => a[0].localeCompare(b[0]));
 }
 
+// Lay nodes out on concentric rings. A single ring stops working past about a
+// dozen nodes, and a class runs 35 of them.
+function ringLayout(count, cx, cy) {
+  const MIN_GAP = 74;          // node diameter plus breathing room for the label
+  const pos = [];
+  let placed = 0, radius = 130;
+
+  while (placed < count) {
+    const capacity = Math.max(1, Math.floor((2 * Math.PI * radius) / MIN_GAP));
+    const n = Math.min(capacity, count - placed);
+    // Offset every other ring so nodes do not line up radially.
+    const twist = (pos.length && radius > 130) ? Math.PI / n : 0;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2 + twist;
+      pos.push({ x: cx + radius * Math.cos(a), y: cy + radius * Math.sin(a), r: radius });
+    }
+    placed += n;
+    radius += 95;
+  }
+  return pos;
+}
+
 function renderGraph(list) {
   const svg = $('graph');
   const now = Date.now();
-  const W = 800, H = 380, cx = W / 2, cy = H / 2;
-  let out = '';
 
+  const cx = 400;
+  const pos = ringLayout(list.length, cx, 0);          // lay out around origin
+  const maxR = pos.length ? Math.max(...pos.map(p => p.r)) : 120;
+  const H = (maxR + 70) * 2;                           // grow the canvas with the rings
+  const cy = H / 2;
+  pos.forEach(p => { p.y += cy; });                    // then drop it into view
+
+  svg.setAttribute('viewBox', `0 0 800 ${H}`);
+
+  let out = '';
   if (list.length === 0) {
     out += `<text x="${cx}" y="${cy + 70}" class="hub-sub">연결된 노드 없음</text>`;
   }
-
-  // Spread nodes on a circle around the broker; radius grows a little with count.
-  const R = list.length > 6 ? 150 : 125;
-  const pos = list.map(([id], i) => {
-    const a = (i / Math.max(list.length, 1)) * Math.PI * 2 - Math.PI / 2;
-    return { id, x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) };
-  });
 
   pos.forEach((p, i) => {
     const state = nodeState(list[i][1], now);
@@ -406,6 +429,15 @@ function render() {
   const list = visibleNodes();
   renderGraph(list);
   renderCards(list);
+}
+
+// 35 boards publishing every 2s is ~18 messages a second; rebuilding the graph
+// and every card that often is wasted work. Coalesce into 4 repaints a second.
+let renderPending = false;
+function scheduleRender() {
+  if (renderPending) return;
+  renderPending = true;
+  setTimeout(() => { renderPending = false; render(); }, 250);
 }
 
 // Nothing arrives when a board dies, so repaint on a timer to age the states.
