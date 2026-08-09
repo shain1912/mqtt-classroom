@@ -10,19 +10,37 @@ web/        dashboard.html - live view of every node, no build step
 skills/     mqtt-classroom skill (SKILL.md + skill.sh) for students
 ```
 
-## For students
+## Install (students)
+
+Either one-liner installs the skill into `~/.claude/skills/mqtt-classroom`:
 
 ```bash
-git clone <this repo>
-cd mqtt-classroom/skills/mqtt-classroom
-chmod +x skill.sh
+npx github:shain1912/mqtt-classroom
+```
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/shain1912/mqtt-classroom/main/install.sh | bash
+```
+
+Nothing is published to npm — `npx` runs straight from the repo. Use the `curl`
+line if you have no Node. On Windows run either from **Git Bash**, not cmd.
+
+Then:
+
+```bash
+cd ~/.claude/skills/mqtt-classroom
 ./skill.sh name seongho    # your board's name, saved to ~/.mqtt-classroom
-./skill.sh check
-./skill.sh devices
+./skill.sh check           # is the broker reachable?
+./skill.sh devices         # which boards are online
 ./skill.sh led on
 ```
 
 The name must match `DEVICE_NAME` in your board's `arduino_secrets.h`.
+
+`skill.sh` needs the mosquitto clients — `brew install mosquitto` (macOS),
+`sudo apt install mosquitto-clients` (Linux), or the
+[Windows installer](https://mosquitto.org/download/) (its default path is
+detected automatically, so you do not have to touch `PATH`).
 
 ## Dashboard
 

@@ -1,0 +1,21 @@
+{
+  "name": "mqtt-classroom",
+  "version": "1.0.0",
+  "description": "Installer for the mqtt-classroom skill: control XIAO ESP32C6 boards and read their sensors over the classroom MQTT broker",
+  "bin": {
+    "mqtt-classroom": "install.js"
+  },
+  "files": [
+    "install.js",
+    "skills/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shain1912/mqtt-classroom.git"
+  }
+}
