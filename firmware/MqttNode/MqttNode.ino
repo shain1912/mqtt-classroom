@@ -69,6 +69,13 @@ void connectWiFi() {
     Serial.print(".");
   }
 
+  // Modem sleep is the default and it parks downlink packets until the next
+  // DTIM beacon, which on a busy classroom AP shows up as laggy LED commands
+  // and TCP connections that quietly time out. The board is USB powered, so
+  // trade the power saving for latency.
+  WiFi.setSleep(false);
+  WiFi.setAutoReconnect(true);
+
   Serial.printf("\nWiFi: connected, IP %s, RSSI %d dBm\n",
                 WiFi.localIP().toString().c_str(), WiFi.RSSI());
 }
@@ -86,12 +93,15 @@ void connectMqtt() {
     if (ok) {
       Serial.println("connected");
       mqtt.publish(topicStatus.c_str(), "online", true);
-      mqtt.subscribe(topicLedSet.c_str());
-      Serial.printf("subscribed to %s\n", topicLedSet.c_str());
+      // QoS 1: the broker holds the command until this board acknowledges it,
+      // instead of dropping it when the socket is momentarily busy.
+      mqtt.subscribe(topicLedSet.c_str(), 1);
+      Serial.printf("subscribed to %s (qos 1)\n", topicLedSet.c_str());
       setLed(ledIsOn());  // republish current state so late subscribers see it
     } else {
-      Serial.printf("failed rc=%d, retrying in 3s\n", mqtt.state());
-      delay(3000);
+      // Retry quickly: every second offline is a second of dropped commands.
+      Serial.printf("failed rc=%d, retrying in 1s\n", mqtt.state());
+      delay(1000);
     }
   }
 }
@@ -140,12 +150,22 @@ void setup() {
 
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setCallback(onMessage);
+  mqtt.setKeepAlive(30);      // default 15s is tight on a congested AP
+  mqtt.setSocketTimeout(10);  // notice a dead socket sooner than the default 15s
   connectMqtt();
 }
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) connectWiFi();
-  if (!mqtt.connected()) connectMqtt();
+
+  // Say why the link went away - a silent reconnect hides the reason commands
+  // were dropped.
+  if (!mqtt.connected()) {
+    Serial.printf("MQTT: disconnected (state=%d, WiFi RSSI %d dBm)\n",
+                  mqtt.state(), WiFi.RSSI());
+    connectMqtt();
+  }
+
   mqtt.loop();
 
   unsigned long now = millis();

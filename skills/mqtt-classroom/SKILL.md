@@ -113,3 +113,6 @@ web page — that is what the 9001 listener exists for.
 | `devices` prints nothing | No board is powered on, or the boards cannot reach the broker |
 | Board shows `offline` | It lost WiFi or power; its last will fired |
 | LED command accepted but nothing happens | Wrong board id — confirm with `./skill.sh devices` |
+| `mosquitto_sub not found` | Install the clients; `skill.sh` already looks in the default Windows install path |
+| Board never appears, serial shows endless dots | WiFi SSID is case-sensitive (`ICEE`, not `icee`), and the board is 2.4GHz-only — a 5GHz-only SSID will never connect |
+| Commands lag seconds or get skipped | Old firmware. WiFi modem sleep parks downlink packets and drops the MQTT socket; the current sketch calls `WiFi.setSleep(false)` |

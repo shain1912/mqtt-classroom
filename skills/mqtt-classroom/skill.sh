@@ -39,9 +39,32 @@ resolve_device() {
   echo "$id"
 }
 
+# The Windows installer does not put mosquitto on PATH, and Git Bash inherits
+# that, so look in the usual install locations before giving up.
 need_clients() {
-  command -v mosquitto_sub >/dev/null 2>&1 || die "mosquitto_sub not found in PATH - see the header of this script"
-  command -v mosquitto_pub >/dev/null 2>&1 || die "mosquitto_pub not found in PATH - see the header of this script"
+  if command -v mosquitto_sub >/dev/null 2>&1 && command -v mosquitto_pub >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local dir
+  for dir in \
+    "/c/Program Files/mosquitto" \
+    "/c/Program Files (x86)/mosquitto" \
+    "$HOME/scoop/apps/mosquitto/current" \
+    "/opt/homebrew/bin" \
+    "/usr/local/bin"
+  do
+    if [ -x "$dir/mosquitto_sub" ] || [ -x "$dir/mosquitto_sub.exe" ]; then
+      PATH="$PATH:$dir"
+      export PATH
+      return 0
+    fi
+  done
+
+  die "mosquitto_sub / mosquitto_pub not found.
+  Windows  install from https://mosquitto.org/download/ (default location is detected automatically)
+  macOS    brew install mosquitto
+  Linux    sudo apt install mosquitto-clients"
 }
 
 usage() {
